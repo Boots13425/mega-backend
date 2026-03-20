@@ -1,0 +1,16 @@
+2026-03-12 09:25:05 INFO ==================================================
+2026-03-12 09:25:05 INFO Starting database backup
+2026-03-12 09:25:05 INFO ==================================================
+2026-03-12 09:25:05 INFO Database: megaglow_db on localhost:5432
+2026-03-12 09:25:05 INFO Backups directory: C:\Users\Donald\Desktop\mega glow\backend\backups
+2026-03-12 09:25:05 INFO Backup filename: db_backup_2026_03_12_09_25.dump.gz
+2026-03-12 09:25:05 INFO Executing: pg_dump -h localhost -p 5432 -U postgres -F c -b -f C:\Users\Donald\Desktop\mega glow\backend\backups\db_backup_2026_03_12_09_25.dump megaglow_db
+2026-03-12 09:25:06 INFO pg_dump completed successfully
+2026-03-12 09:25:06 INFO Compressing backup to: C:\Users\Donald\Desktop\mega glow\backend\backups\db_backup_2026_03_12_09_25.dump.gz
+2026-03-12 09:25:06 INFO Backup compression completed successfully
+2026-03-12 09:25:06 INFO Verifying backup integrity...
+2026-03-12 09:25:06 INFO Backup verification successful. File size: 0.01 MB
+2026-03-12 09:25:06 INFO ==================================================
+2026-03-12 09:25:06 INFO Database backup completed successfully
+2026-03-12 09:25:06 INFO Backup file: C:\Users\Donald\Desktop\mega glow\backend\backups\db_backup_2026_03_12_09_25.dump.gz
+2026-03-12 09:25:06 INFO ==================================================
