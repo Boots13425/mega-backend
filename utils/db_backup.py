@@ -1,3 +1,158 @@
+import gzip
+import logging
+import os
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
+from django.conf import settings
+
+
+def _get_db_config():
+    db = settings.DATABASES.get("default", {})
+    engine = db.get("ENGINE", "")
+    if "postgresql" not in engine:
+        raise RuntimeError(f"Backup utility supports PostgreSQL only. ENGINE={engine!r}")
+
+    return {
+        "host": db.get("HOST", "localhost"),
+        "port": str(db.get("PORT", 5432)),
+        "user": db.get("USER", ""),
+        "password": db.get("PASSWORD", ""),
+        "name": db.get("NAME", ""),
+    }
+
+
+def _ensure_dir(path: Path):
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def _setup_logger(log_path: Path):
+    logger = logging.getLogger("db_backup")
+    logger.setLevel(logging.INFO)
+
+    # Avoid duplicate handlers on repeated runs
+    if not any(isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path) for h in logger.handlers):
+        _ensure_dir(log_path.parent)
+        fh = logging.FileHandler(log_path, encoding="utf-8")
+        fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+
+    return logger
+
+
+def _verify_gzip(gz_path: Path, logger: logging.Logger):
+    if not gz_path.exists():
+        raise FileNotFoundError(f"Backup verification failed: file missing: {gz_path}")
+    if gz_path.stat().st_size <= 0:
+        raise ValueError(f"Backup verification failed: empty file: {gz_path}")
+
+    # Validate gzip readability (at least reads header and some bytes)
+    try:
+        with gzip.open(gz_path, "rb") as f:
+            _ = f.read(1024)
+    except Exception as e:
+        raise ValueError(f"Backup verification failed: gzip could not be read: {e}")
+
+    logger.info("Backup verification successful")
+
+
+def backup_database():
+    """
+    Back up PostgreSQL database using pg_dump (-F c), gzip compress, verify, and log.
+
+    Requirements met:
+    - Creates `backups/` and `logs/backup.log` automatically
+    - Timestamped filename: YYYY_MM_DD_HH_MM
+    - Never overwrites existing backups (fails if file exists)
+    - Uses PGPASSWORD env var for pg_dump password
+    """
+    # Project root = backend/.. (repo root)
+    project_root = Path(__file__).resolve().parents[2]
+    backups_dir = project_root / "backups"
+    logs_dir = project_root / "logs"
+    log_file = logs_dir / "backup.log"
+    logger = _setup_logger(log_file)
+
+    _ensure_dir(backups_dir)
+    _ensure_dir(logs_dir)
+
+    db = _get_db_config()
+
+    ts = datetime.now().strftime("%Y_%m_%d_%H_%M")
+    dump_path = backups_dir / f"db_backup_{ts}.dump"
+    gz_path = backups_dir / f"db_backup_{ts}.dump.gz"
+
+    # Never overwrite existing backups
+    if gz_path.exists() or dump_path.exists():
+        raise FileExistsError(f"Backup already exists for this timestamp: {gz_path}")
+
+    logger.info("Starting database backup")
+    logger.info(f"Backup file path: {gz_path}")
+
+    # pg_dump to custom format (-F c), include large objects (-b)
+    cmd = [
+        "pg_dump",
+        "-h",
+        str(db["host"]),
+        "-p",
+        str(db["port"]),
+        "-U",
+        str(db["user"]),
+        "-F",
+        "c",
+        "-b",
+        "-f",
+        str(dump_path),
+        str(db["name"]),
+    ]
+
+    env = os.environ.copy()
+    env["PGPASSWORD"] = str(db["password"])
+
+    try:
+        # Run pg_dump
+        logger.info("Running pg_dump")
+        subprocess.run(cmd, env=env, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if not dump_path.exists() or dump_path.stat().st_size <= 0:
+            raise RuntimeError(f"pg_dump produced an invalid dump file: {dump_path}")
+
+        # Compress using gzip
+        logger.info("Compressing backup")
+        with open(dump_path, "rb") as f_in, gzip.open(gz_path, "wb") as f_out:
+            while True:
+                chunk = f_in.read(1024 * 1024)
+                if not chunk:
+                    break
+                f_out.write(chunk)
+
+        # Remove original dump (.dump). Keep only .dump.gz
+        dump_size = dump_path.stat().st_size
+        dump_path.unlink(missing_ok=True)
+
+        # Verify gzip integrity
+        _verify_gzip(gz_path, logger)
+        gz_size = gz_path.stat().st_size
+
+        logger.info("Backup created successfully")
+        logger.info(f"Size: {gz_size} bytes (dump was {dump_size} bytes)")
+
+        return {
+            "backup_path": str(gz_path),
+            "size_bytes": gz_size,
+            "timestamp": ts,
+        }
+    except FileExistsError:
+        raise
+    except FileNotFoundError as e:
+        logger.exception("Backup failed: required tool not found")
+        raise e
+    except Exception as e:
+        logger.exception(f"Backup failed: {e}")
+        # Best effort: keep dump if exists to help debugging
+        raise
+
 """
 Database backup utility module for Django PostgreSQL backups.
 

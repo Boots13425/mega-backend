@@ -1,3 +1,19 @@
+from django.core.management.base import BaseCommand
+
+from utils.db_backup import backup_database
+
+
+class Command(BaseCommand):
+    help = "Create a PostgreSQL database backup (pg_dump + gzip) at 18:00 via OS scheduler."
+
+    def handle(self, *args, **options):
+        try:
+            result = backup_database()
+            self.stdout.write(self.style.SUCCESS(f"Backup successful: {result.get('backup_path')}"))
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f"Backup failed: {e}"))
+            raise
+
 """
 Django management command to perform database backup.
 
