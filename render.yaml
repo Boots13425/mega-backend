@@ -1,9 +1,11 @@
 services:
   - type: web
     name: mega-backend
-    runtime: python
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn megaglow.wsgi"
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: bash build.sh
+    startCommand: gunicorn megaglow.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.13
