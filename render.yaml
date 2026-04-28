@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mega-backend
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn megaglow.wsgi"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13
