@@ -145,10 +145,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-STATICFILES_DIRS = [
-    BASE_DIR.parent / "frontend" / "dist"
-]
+FRONTEND_DIST_DIR = BASE_DIR.parent / "frontend" / "dist"
+STATICFILES_DIRS = [FRONTEND_DIST_DIR] if FRONTEND_DIST_DIR.exists() else []
 
 # REST Framework configuration
 REST_FRAMEWORK = {
@@ -173,6 +171,14 @@ else:
         'https://mega-frontend-ochre.vercel.app',
         'https://mega-glow-app.vercel.app',  # Add other Vercel domains if needed
     ]
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://.*\.vercel\.app$",
+    ]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://mega-frontend-ochre.vercel.app',
+    'https://mega-glow-app.vercel.app',
+]
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
