@@ -163,11 +163,19 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 50,
 }
 
-# CORS settings - allow frontend (Vite dev server) to access API
-# In development, it's convenient to allow all origins so the app works
-# when accessed from other devices on the local network.
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS settings
+if DEBUG:
+    # Development: allow all origins
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    # Production: be more restrictive
+    CORS_ALLOWED_ORIGINS = [
+        'https://mega-frontend-ochre.vercel.app',
+        'https://mega-glow-app.vercel.app',  # Add other Vercel domains if needed
+    ]
+
 CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 # Use decimal for money calculations
 USE_DECIMAL = True
