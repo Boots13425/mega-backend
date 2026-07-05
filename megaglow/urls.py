@@ -16,6 +16,9 @@ router.register(r'sales', SaleViewSet, basename='sale')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Backward-compatible auth route for frontend deployments configured with
+    # the Render root URL instead of the `/api` base URL.
+    path('auth/login/', admin_login),
     path('api/auth/login/', admin_login),
     path('api/', include(router.urls)),
     path('api/reporting/', include('reporting.urls')),
